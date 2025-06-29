@@ -1,0 +1,691 @@
+import java.util.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+public class EnhancedBookInventorySystem {
+    // Core data structures
+    private final String[] fixedBookName = new String[5];
+    private int count = 0;
+    
+    ArrayList<String> listBookName = new ArrayList<>();
+    ArrayList<String> parallelGenreList = new ArrayList<>();
+    ArrayList<String> authorList = new ArrayList<>();
+    ArrayList<Double> priceList = new ArrayList<>();
+    ArrayList<Integer> stockList = new ArrayList<>();
+    ArrayList<LocalDate> dateAddedList = new ArrayList<>();
+    ArrayList<Double> ratingList = new ArrayList<>();
+    
+    // Statistics tracking
+    private int totalBooksAdded = 0;
+    private int totalBooksRemoved = 0;
+    private double totalInventoryValue = 0.0;
+    
+    // Fixed array methods
+    public void addFixedBook(String book) {
+        // Data validation - critical for ML model quality
+        if (book == null || book.trim().isEmpty()) {
+            System.out.println("Book name cannot be empty");
+            return;  // Reject invalid training samples
+        }
+        
+        // Check training set capacity (like batch size limits)
+        if (count < fixedBookName.length) {
+            fixedBookName[count] = book.trim();  // Add cleaned training sample
+            count++;
+            totalBooksAdded++;  // Track training progress
+            System.out.println("Added: " + book + " to fixed array");
+        } else {
+            System.out.println("Array is full. Cannot add: " + book);
+            // Training set complete - ready for model training
+        }
+    }
+    
+    // Enhanced dynamic list methods
+    public void addListBook(String book, String genre, String author, double price, int stock, double rating) {
+        // Data validation - crucial for ML data quality
+        if (book == null || book.trim().isEmpty() || genre == null || genre.trim().isEmpty()) {
+            System.out.println("Book name and genre cannot be empty");
+            return;  // Reject incomplete feature vectors
+        }
+        if (author == null || author.trim().isEmpty()) {
+            System.out.println("Author name cannot be empty");
+            return;  // Ensure all categorical features are present
+        }
+        if (price < 0 || stock < 0 || rating < 0 || rating > 5) {
+            System.out.println("Invalid price, stock, or rating values");
+            return;  // Validate numerical feature ranges
+        }
+        
+        // Add new sample to dataset (parallel feature vectors)
+        listBookName.add(book.trim());
+        parallelGenreList.add(genre.trim());
+        authorList.add(author.trim());
+        priceList.add(price);
+        stockList.add(stock);
+        dateAddedList.add(LocalDate.now());
+        ratingList.add(rating);
+        totalInventoryValue += (price * stock);
+        totalBooksAdded++;
+        
+        System.out.println("Added: " + book + " by " + author + " ($" + price + ", Stock: " + stock + ", Rating: " + rating + " stars)");
+    }
+    
+    // Overloaded method for backward compatibility
+    public void addListBook(String book, String genre) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter author: ");
+        String author = scanner.nextLine();
+        System.out.print("Enter price: $");
+        double price = 0;
+        try {
+            price = scanner.nextDouble();
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid price format");
+            scanner.nextLine(); // consume invalid input
+            return;
+        }
+        System.out.print("Enter stock quantity: ");
+        int stock = 0;
+        try {
+            stock = scanner.nextInt();
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid stock quantity format");
+            scanner.nextLine(); // consume invalid input
+            return;
+        }
+        System.out.print("Enter rating (0-5): ");
+        double rating = 0;
+        try {
+            rating = scanner.nextDouble();
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid rating format");
+            scanner.nextLine(); // consume invalid input
+            return;
+        }
+        
+        addListBook(book, genre, author, price, stock, rating);
+    }
+    
+    public void removeListBook(int index) {
+        if (index >= 0 && index < listBookName.size()) {
+            String removedBook = listBookName.get(index);
+            double removedValue = priceList.get(index) * stockList.get(index);
+            totalInventoryValue -= removedValue;
+            totalBooksRemoved++;
+            
+            System.out.println("Successfully removed " + removedBook);
+            listBookName.remove(index);
+            parallelGenreList.remove(index);
+            authorList.remove(index);
+            priceList.remove(index);
+            stockList.remove(index);
+            dateAddedList.remove(index);
+            ratingList.remove(index);
+        } else {
+            System.out.println("Invalid book index");
+        }
+    }
+    
+    // Enhanced search methods
+    public void findListBook(String book) {
+        if (book == null || book.trim().isEmpty()) {
+            System.out.println("Search term cannot be empty");
+            return;
+        }
+        
+        boolean found = false;
+        for (int i = 0; i < listBookName.size(); i++) {
+            if (listBookName.get(i).toLowerCase().contains(book.toLowerCase())) {
+                displayBookDetails(i);
+                found = true;
+            }
+        }
+        if (!found) {
+            System.out.println("Could not find " + book + " in dynamic list");
+        }
+    }
+    
+    public void findByAuthor(String author) {
+        if (author == null || author.trim().isEmpty()) {
+            System.out.println("Author name cannot be empty");
+            return;
+        }
+        
+        boolean found = false;
+        System.out.println("\nBOOKS BY " + author.toUpperCase() + ":");
+        System.out.println("-".repeat(50));
+        
+        for (int i = 0; i < authorList.size(); i++) {
+            if (authorList.get(i).toLowerCase().contains(author.toLowerCase())) {
+                System.out.println(listBookName.get(i) + " [" + parallelGenreList.get(i) + "] - $" + priceList.get(i));
+                found = true;
+            }
+        }
+        
+        if (!found) {
+            System.out.println("   No books found by " + author);
+        }
+        System.out.println("-".repeat(50));
+    }
+    
+    public void findByPriceRange(double minPrice, double maxPrice) {
+        if (minPrice < 0 || maxPrice < 0 || minPrice > maxPrice) {
+            System.out.println("Invalid price range");
+            return;
+        }
+        
+        boolean found = false;
+        System.out.println("\nBOOKS IN PRICE RANGE $" + minPrice + " - $" + maxPrice + ":");
+        System.out.println("-".repeat(50));
+        
+        for (int i = 0; i < priceList.size(); i++) {
+            if (priceList.get(i) >= minPrice && priceList.get(i) <= maxPrice) {
+                System.out.println(listBookName.get(i) + " by " + authorList.get(i) + " - $" + priceList.get(i));
+                found = true;
+            }
+        }
+        
+        if (!found) {
+            System.out.println("   No books found in this price range");
+        }
+        System.out.println("-".repeat(50));
+    }
+    
+    public void findTopRatedBooks(double minRating) {
+        if (minRating < 0 || minRating > 5) {
+            System.out.println("Rating must be between 0 and 5");
+            return;
+        }
+        
+        boolean found = false;
+        System.out.println("\nTOP RATED BOOKS (Rating >= " + minRating + "):");
+        System.out.println("-".repeat(50));
+        
+        // Create a list of indices and sort by rating
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < ratingList.size(); i++) {
+            if (ratingList.get(i) >= minRating) {
+                indices.add(i);
+            }
+        }
+        
+        indices.sort((a, b) -> Double.compare(ratingList.get(b), ratingList.get(a)));
+        
+        for (int index : indices) {
+            System.out.println(listBookName.get(index) + " by " + authorList.get(index) + 
+                             " - " + ratingList.get(index) + " stars [$" + priceList.get(index) + "]");
+            found = true;
+        }
+        
+        if (!found) {
+            System.out.println("   No books found with rating >= " + minRating);
+        }
+        System.out.println("-".repeat(50));
+    }
+    
+    // Enhanced display methods
+    public void displayListNames() {
+        System.out.println("\nDYNAMIC LIST BOOKS (Total: " + listBookName.size() + "):");
+        System.out.println("=" + "=".repeat(80));
+        if (listBookName.isEmpty()) {
+            System.out.println("   No books in dynamic list yet");
+        } else {
+            for (int i = 0; i < listBookName.size(); i++) {
+                displayBookDetails(i);
+            }
+        }
+        System.out.println("=" + "=".repeat(80));
+    }
+    
+    private void displayBookDetails(int index) {
+        if (index < 0 || index >= listBookName.size()) {
+            System.out.println("Invalid book index");
+            return;
+        }
+        
+        System.out.printf("   %d. %s by %s%n", 
+                         index + 1, listBookName.get(index), authorList.get(index));
+        System.out.printf("      Genre: %s | Price: $%.2f | Stock: %d | Rating: %.1f stars%n",
+                         parallelGenreList.get(index), priceList.get(index), 
+                         stockList.get(index), ratingList.get(index));
+        System.out.printf("      Added: %s | Total Value: $%.2f%n",
+                         dateAddedList.get(index).format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),
+                         priceList.get(index) * stockList.get(index));
+        System.out.println();
+    }
+    
+    // New analytical methods
+    public void showInventoryAnalytics() {
+        if (listBookName.isEmpty()) {
+            System.out.println("No books in inventory for analytics");
+            return;
+        }
+        
+        System.out.println("\nINVENTORY ANALYTICS:");
+        System.out.println("=" + "=".repeat(50));
+        
+        // Basic stats
+        System.out.println("BASIC STATISTICS:");
+        System.out.println("   * Total Books in Dynamic List: " + listBookName.size());
+        System.out.println("   * Total Books Added (All Time): " + totalBooksAdded);
+        System.out.println("   * Total Books Removed (All Time): " + totalBooksRemoved);
+        System.out.printf("   * Total Inventory Value: $%.2f%n", totalInventoryValue);
+        
+        // Price analytics
+        double minPrice = Collections.min(priceList);
+        double maxPrice = Collections.max(priceList);
+        double avgPrice = priceList.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        
+        System.out.println("\nPRICING ANALYTICS:");
+        System.out.printf("   * Cheapest Book: $%.2f%n", minPrice);
+        System.out.printf("   * Most Expensive Book: $%.2f%n", maxPrice);
+        System.out.printf("   * Average Price: $%.2f%n", avgPrice);
+        
+        // Rating analytics
+        double avgRating = ratingList.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        double maxRating = Collections.max(ratingList);
+        double minRating = Collections.min(ratingList);
+        
+        System.out.println("\nRATING ANALYTICS:");
+        System.out.printf("   * Average Rating: %.2f%n", avgRating);
+        System.out.printf("   * Highest Rating: %.1f%n", maxRating);
+        System.out.printf("   * Lowest Rating: %.1f%n", minRating);
+        
+        // Stock analytics
+        int totalStock = stockList.stream().mapToInt(Integer::intValue).sum();
+        int maxStock = Collections.max(stockList);
+        int minStock = Collections.min(stockList);
+        
+        System.out.println("\nSTOCK ANALYTICS:");
+        System.out.println("   * Total Items in Stock: " + totalStock);
+        System.out.println("   * Highest Stock: " + maxStock);
+        System.out.println("   * Lowest Stock: " + minStock);
+        
+        // Genre distribution
+        System.out.println("\nGENRE DISTRIBUTION:");
+        Map<String, Integer> genreCount = new HashMap<>();
+        for (String genre : parallelGenreList) {
+            genreCount.put(genre, genreCount.getOrDefault(genre, 0) + 1);
+        }
+        genreCount.entrySet().stream()
+                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                 .forEach(entry -> System.out.println("   * " + entry.getKey() + ": " + entry.getValue() + " books"));
+        
+        System.out.println("=" + "=".repeat(50));
+    }
+    
+    public void showLowStockAlert() {
+        System.out.println("\nLOW STOCK ALERT (Stock <= 5):");
+        System.out.println("-".repeat(50));
+        
+        boolean hasLowStock = false;
+        for (int i = 0; i < stockList.size(); i++) {
+            if (stockList.get(i) <= 5) {
+                System.out.println("ALERT: " + listBookName.get(i) + " by " + authorList.get(i) + 
+                                  " - Only " + stockList.get(i) + " left!");
+                hasLowStock = true;
+            }
+        }
+        
+        if (!hasLowStock) {
+            System.out.println("   All books have adequate stock levels");
+        }
+        System.out.println("-".repeat(50));
+    }
+    
+    public void updateStock(int bookIndex, int newStock) {
+        if (bookIndex >= 0 && bookIndex < stockList.size() && newStock >= 0) {
+            int oldStock = stockList.get(bookIndex);
+            double price = priceList.get(bookIndex);
+            
+            // Update inventory value
+            totalInventoryValue -= (price * oldStock);
+            totalInventoryValue += (price * newStock);
+            
+            stockList.set(bookIndex, newStock);
+            System.out.println("Updated stock for " + listBookName.get(bookIndex) + 
+                             " from " + oldStock + " to " + newStock);
+        } else {
+            System.out.println("Invalid book index or stock quantity");
+        }
+    }
+    
+    // Enhanced menu system with proper input validation
+    public void showMenu() {
+        Scanner scanner = new Scanner(System.in);
+        
+        while (true) {
+            try {
+                System.out.println("\n" + "=".repeat(60));
+                System.out.println("ENHANCED BOOK INVENTORY MANAGEMENT SYSTEM");
+                System.out.println("=".repeat(60));
+                System.out.println("BASIC OPERATIONS:");
+                System.out.println("  1. Add book to Fixed Array");
+                System.out.println("  2. Add book to Dynamic List (Enhanced)");
+                System.out.println("  3. Remove book from Dynamic List");
+                System.out.println("  4. Update stock quantity");
+                System.out.println();
+                System.out.println("SEARCH & FILTER:");
+                System.out.println("  5. Search for book by title");
+                System.out.println("  6. Find books by author");
+                System.out.println("  7. Find books by price range");
+                System.out.println("  8. Find top-rated books");
+                System.out.println("  9. Find books by genre");
+                System.out.println();
+                System.out.println("DISPLAY & ANALYTICS:");
+                System.out.println("  10. Display Fixed Array books");
+                System.out.println("  11. Display Dynamic List books");
+                System.out.println("  12. Display books by Genre");
+                System.out.println("  13. Show Inventory Analytics");
+                System.out.println("  14. Show Low Stock Alert");
+                System.out.println();
+                System.out.println("DEMO & EXIT:");
+                System.out.println("  15. Run Enhanced Demo");
+                System.out.println("  0. Exit");
+                System.out.println("=".repeat(60));
+                System.out.print("Choose an option: ");
+                
+                int choice;
+                try {
+                    choice = scanner.nextInt();
+                    scanner.nextLine(); // consume newline
+                } catch (InputMismatchException e) {
+                    System.out.println("Invalid input. Please enter a number.");
+                    scanner.nextLine(); // consume invalid input
+                    continue;
+                }
+                
+                switch (choice) {
+                    case 1:
+                        System.out.print("Enter book title: ");
+                        String fixedBook = scanner.nextLine();
+                        addFixedBook(fixedBook);
+                        break;
+                        
+                    case 2:
+                        System.out.print("Enter book title: ");
+                        String book = scanner.nextLine();
+                        System.out.print("Enter genre: ");
+                        String genre = scanner.nextLine();
+                        System.out.print("Enter author: ");
+                        String author = scanner.nextLine();
+                        
+                        System.out.print("Enter price: $");
+                        double price;
+                        try {
+                            price = scanner.nextDouble();
+                        } catch (InputMismatchException e) {
+                            System.out.println("Invalid price format");
+                            scanner.nextLine();
+                            break;
+                        }
+                        
+                        System.out.print("Enter stock quantity: ");
+                        int stock;
+                        try {
+                            stock = scanner.nextInt();
+                        } catch (InputMismatchException e) {
+                            System.out.println("Invalid stock quantity format");
+                            scanner.nextLine();
+                            break;
+                        }
+                        
+                        System.out.print("Enter rating (0-5): ");
+                        double rating;
+                        try {
+                            rating = scanner.nextDouble();
+                        } catch (InputMismatchException e) {
+                            System.out.println("Invalid rating format");
+                            scanner.nextLine();
+                            break;
+                        }
+                        
+                        addListBook(book, genre, author, price, stock, rating);
+                        break;
+                        
+                    case 3:
+                        displayListNames();
+                        if (!listBookName.isEmpty()) {
+                            System.out.print("Enter index to remove (1-" + listBookName.size() + "): ");
+                            try {
+                                int index = scanner.nextInt() - 1;
+                                removeListBook(index);
+                            } catch (InputMismatchException e) {
+                                System.out.println("Invalid index format");
+                                scanner.nextLine();
+                            }
+                        }
+                        break;
+                        
+                    case 4:
+                        displayListNames();
+                        if (!listBookName.isEmpty()) {
+                            System.out.print("Enter book index (1-" + listBookName.size() + "): ");
+                            try {
+                                int index = scanner.nextInt() - 1;
+                                System.out.print("Enter new stock quantity: ");
+                                int newStock = scanner.nextInt();
+                                updateStock(index, newStock);
+                            } catch (InputMismatchException e) {
+                                System.out.println("Invalid input format");
+                                scanner.nextLine();
+                            }
+                        }
+                        break;
+                        
+                    case 5:
+                        System.out.print("Enter book title to search: ");
+                        String searchBook = scanner.nextLine();
+                        findFixedBook(searchBook);
+                        findListBook(searchBook);
+                        break;
+                        
+                    case 6:
+                        System.out.print("Enter author name: ");
+                        String searchAuthor = scanner.nextLine();
+                        findByAuthor(searchAuthor);
+                        break;
+                        
+                    case 7:
+                        System.out.print("Enter minimum price: $");
+                        try {
+                            double minPrice = scanner.nextDouble();
+                            System.out.print("Enter maximum price: $");
+                            double maxPrice = scanner.nextDouble();
+                            findByPriceRange(minPrice, maxPrice);
+                        } catch (InputMismatchException e) {
+                            System.out.println("Invalid price format");
+                            scanner.nextLine();
+                        }
+                        break;
+                        
+                    case 8:
+                        System.out.print("Enter minimum rating (0-5): ");
+                        try {
+                            double minRating = scanner.nextDouble();
+                            findTopRatedBooks(minRating);
+                        } catch (InputMismatchException e) {
+                            System.out.println("Invalid rating format");
+                            scanner.nextLine();
+                        }
+                        break;
+                        
+                    case 9:
+                        System.out.print("Enter genre to search: ");
+                        String searchGenre = scanner.nextLine();
+                        findGenre(searchGenre);
+                        break;
+                        
+                    case 10:
+                        displayFixedBookNames();
+                        break;
+                        
+                    case 11:
+                        displayListNames();
+                        break;
+                        
+                    case 12:
+                        displayGenre();
+                        break;
+                        
+                    case 13:
+                        showInventoryAnalytics();
+                        break;
+                        
+                    case 14:
+                        showLowStockAlert();
+                        break;
+                        
+                    case 15:
+                        runEnhancedDemo();
+                        break;
+                        
+                    case 0:
+                        System.out.println("Thank you for using Enhanced Book Inventory System!");
+                        System.out.println("Final Statistics:");
+                        System.out.println("   * Total books processed: " + totalBooksAdded);
+                        System.out.printf("   * Final inventory value: $%.2f%n", totalInventoryValue);
+                        scanner.close();
+                        return;
+                        
+                    default:
+                        System.out.println("Invalid option. Please try again.");
+                }
+            } catch (Exception e) {
+                System.out.println("An unexpected error occurred: " + e.getMessage());
+                scanner.nextLine(); // consume any remaining input
+            }
+        }
+    }
+    
+    // Enhanced demo with realistic data
+    public void runEnhancedDemo() {
+        System.out.println("\nRUNNING ENHANCED DEMO...");
+        System.out.println("Adding sample books with complete information...\n");
+        
+        // Add to fixed array
+        addFixedBook("The Hobbit");
+        addFixedBook("1984");
+        addFixedBook("To Kill a Mockingbird");
+        
+        // Add enhanced books to dynamic list
+        addListBook("Dracula", "Horror", "Bram Stoker", 12.99, 15, 4.2);
+        addListBook("Pride and Prejudice", "Romance", "Jane Austen", 10.99, 8, 4.5);
+        addListBook("The Shining", "Horror", "Stephen King", 14.99, 3, 4.0);
+        addListBook("Dune", "Sci-Fi", "Frank Herbert", 16.99, 20, 4.7);
+        addListBook("The Great Gatsby", "Classic", "F. Scott Fitzgerald", 11.99, 12, 4.1);
+        addListBook("Neuromancer", "Sci-Fi", "William Gibson", 13.99, 7, 4.3);
+        addListBook("Jane Eyre", "Romance", "Charlotte Brontë", 9.99, 6, 4.4);
+        addListBook("It", "Horror", "Stephen King", 15.99, 2, 4.2);
+        
+        // Display comprehensive results
+        displayFixedBookNames();
+        displayListNames();
+        displayGenre();
+        showInventoryAnalytics();
+        showLowStockAlert();
+        
+        // Demonstrate search features
+        System.out.println("\nDEMO SEARCHES:");
+        findByAuthor("Stephen King");
+        findByPriceRange(10.0, 15.0);
+        findTopRatedBooks(4.3);
+        
+        System.out.println("Enhanced Demo completed!");
+    }
+    
+    // Fixed method with proper null checking
+    public void findFixedBook(String book) {
+        if (book == null || book.trim().isEmpty()) {
+            System.out.println("Search term cannot be empty");
+            return;
+        }
+        
+        boolean found = false;
+        for (int i = 0; i < count; i++) {
+            // Added null check to prevent NullPointerException
+            if (fixedBookName[i] != null && fixedBookName[i].equalsIgnoreCase(book.trim())) {
+                System.out.println("Found " + fixedBookName[i] + " in fixed array");
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            System.out.println("Could not find " + book + " in fixed array");
+        }
+    }
+    
+    public void displayFixedBookNames() {
+        System.out.println("\nFIXED ARRAY BOOKS (Capacity: " + count + "/5):");
+        System.out.println("=" + "=".repeat(40));
+        if (count == 0) {
+            System.out.println("   No books in fixed array yet");
+        } else {
+            for (int i = 0; i < count; i++) {
+                if (fixedBookName[i] != null) {
+                    System.out.println("   " + (i + 1) + ". " + fixedBookName[i]);
+                }
+            }
+        }
+        System.out.println("=" + "=".repeat(40));
+    }
+    
+    public void displayGenre() {
+        if (parallelGenreList.isEmpty()) {
+            System.out.println("No books available to display by genre");
+            return;
+        }
+        
+        ArrayList<String> usedGenres = new ArrayList<>();
+        System.out.println("\nBOOKS BY GENRE:");
+        System.out.println("=" + "=".repeat(40));
+        
+        for (int i = 0; i < parallelGenreList.size(); i++) {
+            String currentGenre = parallelGenreList.get(i);
+            
+            if (usedGenres.contains(currentGenre)) {
+                continue;
+            }
+            
+            usedGenres.add(currentGenre);
+            System.out.println("\n" + currentGenre.toUpperCase() + ":");
+            
+            for (int j = 0; j < parallelGenreList.size(); j++) {
+                if (parallelGenreList.get(j).equals(currentGenre)) {
+                    System.out.println("   * " + listBookName.get(j) + " by " + authorList.get(j) + 
+                                     " ($" + priceList.get(j) + ", " + ratingList.get(j) + " stars)");
+                }
+            }
+        }
+        System.out.println("=" + "=".repeat(40));
+    }
+    
+    public void findGenre(String genre) {
+        if (genre == null || genre.trim().isEmpty()) {
+            System.out.println("Genre cannot be empty");
+            return;
+        }
+        
+        boolean found = false;
+        System.out.println("\nBOOKS IN " + genre.toUpperCase() + " GENRE:");
+        System.out.println("-".repeat(50));
+        
+        for (int i = 0; i < listBookName.size(); i++) {
+            if (parallelGenreList.get(i).equalsIgnoreCase(genre.trim())) {
+                System.out.println("   * " + listBookName.get(i) + " by " + authorList.get(i) + 
+                                 " ($" + priceList.get(i) + ", Stock: " + stockList.get(i) + ")");
+                found = true;
+            }
+        }
+        
+        if (!found) {
+            System.out.println("   No books found in " + genre + " genre");
+        }
+        System.out.println("-".repeat(50));
+    }
+    
+    public static void main(String[] args) {
+        EnhancedBookInventorySystem inventory = new EnhancedBookInventorySystem();
+        inventory.showMenu();
+    }
+}
